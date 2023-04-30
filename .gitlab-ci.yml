@@ -1,0 +1,38 @@
+stages:
+  # - build
+  # - test
+  - staging deploy
+  - integration test
+  - prod deploy
+
+deploy_to_staging_gcp:
+  stage: staging deploy
+  tags:
+    - kube-conf-runner-1
+  variables:
+    IMAGE_TAG: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
+  rules:
+    - if: '($CI_COMMIT_BRANCH == "master" || $CI_COMMIT_TAG)'
+      when: on_success
+  script:
+    - 'echo "Script start: $(date +"%Y-%m-%d %T")"'
+    - kubectl config use-context gke_tm-backend_asia-south1_stage-tm-backend-gke
+    - cd ~/tm-kube-conf-gcp/tm-ds-bio-generation && helm upgrade --install tm-ds-bio-generation --set "replicaCount=1" --set "image.tag=$CI_COMMIT_SHA" --set "autoScale.isEnabled=false" --namespace staging .
+    - 'curl -X POST --data-urlencode "payload={\"channel\": \"#stage-deployments\", \"username\": \"Stage Deployments\", \"text\": \"$GITLAB_USER_LOGIN \n $CI_PIPELINE_URL \n *Commit#*\n$CI_COMMIT_TITLE \n *Branch#*\n$CI_DEFAULT_BRANCH \n *Repository#*\ntm-ds-bio-generation\", \"icon_emoji\": \":ghost:\"}" https://hooks.slack.com/services/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'
+
+Deploy to Prod:
+  stage: prod deploy
+  tags:
+    - kube-conf-runner-1
+  variables:
+    IMAGE_TAG: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
+  rules:
+    - if: '$CI_COMMIT_TAG '
+      when: manual
+  script:
+    - 'echo "Script start: $(date +"%Y-%m-%d %T")"'
+    - echo "Recording a deployment"
+    - kubectl config use-context gke_tm-backend_asia-south1_prod-tm-backend-gke
+    - cd ~/tm-kube-conf-gcp/tm-ds-bio-generation && helm upgrade --install tm-ds-bio-generation --set "image.tag=$CI_COMMIT_SHA" --namespace production .
+    - 'curl -X POST -H "Api-Key: ${NEW_RELIC_DEPLOYMENT_KEY}" -H "Content-Type: application/json" -d "{\"deployment\":{ \"revision\": \"$CI_COMMIT_TAG\", \"changelog\": \"Commit ID = $CI_COMMIT_SHORT_SHA\", \"description\": \"PIPELINE ID = $CI_PIPELINE_ID\", \"user\": \"$GITLAB_USER_EMAIL\", \"timestamp\": \"$CI_JOB_STARTED_AT\" }}" "https://api.newrelic.com/v2/applications/575386444/deployments.json"'
+    - 'curl -X POST --data-urlencode "payload={\"channel\": \"#prod-deployments\", \"username\": \"Prod Deployment\", \"text\": \"$GITLAB_USER_LOGIN \n $CI_PIPELINE_URL \n *Commit#*\n$CI_COMMIT_TITLE \n *TAG#*\n$CI_COMMIT_TAG \n *Repository#*\ntm-ds-bio-generation\", \"icon_emoji\": \":ghost:\"}" https://hooks.slack.com/services/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'

@@ -1,0 +1,12 @@
+fastapi
+torch
+torchvision
+fastapi-health
+uvicorn
+sentry_sdk
+newrelic
+python-dotenv
+requests
+pandas
+transformers
+sentencepiece

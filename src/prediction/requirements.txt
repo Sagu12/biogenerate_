@@ -1,0 +1,8 @@
+fastapi
+fastapi-health
+uvicorn
+sentry_sdk
+newrelic
+python-dotenv
+requests
+openai
