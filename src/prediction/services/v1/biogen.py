@@ -1,5 +1,5 @@
 # import openai
-# openai.api_key = "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"
+# openai.api_key = "your api key here"
 
 # class BioGen: 
 #   def __init__(self):
