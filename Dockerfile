@@ -1,4 +1,12 @@
-FROM python:3.9-slim-buster
+# FROM python:3.9-slim-buster
+
+FROM nvidia/cuda:11.6.2-base-ubuntu20.04
+
+ENV TZ=Asia/Dubai
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+RUN apt update
+RUN apt install -y tzdata
 
 # Set the working directory to /code
 WORKDIR /code
@@ -7,11 +15,12 @@ WORKDIR /code
 COPY src/prediction /code/src/prediction
 
 RUN apt-get update
-# RUN apt-get install ffmpeg libsm6 libxext6  -y
-# RUN apt-get install git-lfs
 
 # Install any needed packages specified in requirements.txt
 COPY requirements.txt /code/requirements.txt
+
+RUN apt-get update && apt-get install -y python3-pip
+
 RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
 
 EXPOSE 80

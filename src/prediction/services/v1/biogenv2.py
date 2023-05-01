@@ -40,12 +40,13 @@ class BioGen:
         paraphrased_sentences = self.tokenizer.batch_decode(outputs, skip_special_tokens=True)
         return paraphrased_sentences
     
-    async def main(self, input_keywords: str) -> None:
-        lowered_keywords = input_keywords.lower()
+    async def main(self, keywords: str) -> None:
+        lowered_keywords = keywords.lower()
         split_keywords = lowered_keywords.split(",")
         if len(split_keywords) < 2 or len(split_keywords) > 3:
             return {"error": "Invalid input keywords."}
         else:
+            lowered_keywords = keywords.lower()
             lowered_keywords_split = lowered_keywords.split(',')
             lowered_keywords_split = [keyword.strip() for keyword in lowered_keywords_split]
             new_keywords = ", ".join(lowered_keywords_split)
@@ -55,21 +56,30 @@ class BioGen:
                 combinations_list.append(", ".join(combination))
 
             bios_df = self.df.copy(deep=True)
+            bios_df["keywords"]= bios_df["keywords"].str.lower()
 
             matching_bios = bios_df[bios_df["keywords"].isin(combinations_list)]["bios"].values.tolist()
             target_bios = bios_df[bios_df["keywords"]==new_keywords]["bios"].values.tolist()
+            target_bios_isin = bios_df[bios_df["keywords"].str.contains(new_keywords)]["bios"].values.tolist()
 
-            if len(target_bios)==0:
+            if len(target_bios)==0 and len(target_bios_isin)==0:
                 bios_to_paraphrase = matching_bios
             else:
-                bios_to_paraphrase = matching_bios + target_bios
+                bios_to_paraphrase = matching_bios + target_bios + target_bios_isin
 
             bios_to_paraphrase = list(set(bios_to_paraphrase))
+            bios_to_paraphrase= [str(i) for i in bios_to_paraphrase]
+            try:
+                bios_to_paraphrase.remove("[]")
+            except:
+                bios_to_paraphrase= bios_to_paraphrase
+            bios_to_paraphrase = random.sample(bios_to_paraphrase, 3)
+
             paraphrased_bios = []
             for sentence in bios_to_paraphrase:
                 with torch.no_grad():
                     paraphrased_sentences = await self.paraphrase(sentence)
                 paraphrased_bios.append(paraphrased_sentences)
             paraphrased_bios_flat = [item for sublist in paraphrased_bios for item in sublist]
-            output_bios = random.sample(paraphrased_bios_flat, 5)
+            output_bios = paraphrased_bios_flat
             return {"bios": output_bios}
